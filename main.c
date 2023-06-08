@@ -19,8 +19,15 @@
  ****************************************************************************
  * aslpipe: read message from stdin and log send them to asl log system.
  ****************************************************************************/
-//#define OSLOG
-//#define SYSLOG
+#include "version.h"
+
+#ifndef __APPLE__
+# define ASLPIPE_SYSLOG
+#else
+//# define ASLPIPE_OSLOG
+//# define ASLPIPE_SYSLOG
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -29,25 +36,25 @@
 #include <sched.h>
 #include <string.h>
 #include <stdarg.h>
-#ifdef OSLOG
+#ifdef ASLPIPE_OSLOG
 #include <os/log.h>
-#elif defined(SYSLOG)
+#elif defined(ASLPIPE_SYSLOG)
 #include <syslog.h>
 #else
 #include <asl.h>
 #endif
 
-#include "version.h"
+
 
 #define safe_snprintf(ret, s, sz, ...) \
     (((ret) = snprintf(s, sz, __VA_ARGS__)) > 0 ? ((ret) >= (sz) ? (sz) - 1 : (ret)) : 0)
 
-#ifdef OSLOG
+#ifdef ASLPIPE_OSLOG
 int vlog(os_log_t log, const char * facility, const char * category, const char * message_key, int level, void * msg, const char *message) {
     os_log_with_type(log, level, "%s", message);
     return 0;
 }
-#elif defined SYSLOG
+#elif defined ASLPIPE_SYSLOG
 int vlog(void * log, const char * facility, const char * category, const char * message_key, int level, void * msg, const char *message) {
     syslog(level, "%s", message);
     return 0;
@@ -68,7 +75,7 @@ static int      check_child(pid_t child, FILE * infile, int * ret);
 
 static int usage(int ret) {
     FILE * out = ret == 0 ? stdout : stderr;
-    fprintf(out, "%s v%s git-%s - Copyright (c) Vincent Sallaberry 2021,2023 under GNU GPL.\n",
+    fprintf(out, "%s v%s git-%s - Copyright (c) 2021,2023 Vincent Sallaberry under GNU GPL.\n",
             BUILD_APPNAME, APP_VERSION, BUILD_GITREV);
     fprintf(out, "Usage: aslpipe [-h] [-V] [-F facility] [-l level] [-C category] [-S sender]\n"
                  "               [-K message_key] [-k key value[ -k ...]] [-m message] [command[ args]]\n"
@@ -78,11 +85,11 @@ static int usage(int ret) {
 }
 struct keyarg_s { const char * key; const char * value; struct keyarg_s * next; };
 int main(int argc, const char*const* argv) {
-#ifdef OSLOG
+#ifdef ASLPIPE_OSLOG
     os_log_t        log;
     void *          msg         = NULL;
     int             level       = OS_LOG_TYPE_INFO;
-#elif defined(SYSLOG)
+#elif defined(ASLPIPE_SYSLOG)
     void *          log         = NULL, msg = NULL;;
     int             level       = LOG_NOTICE;
 #else
@@ -136,14 +143,15 @@ int main(int argc, const char*const* argv) {
                     message = argv[i];
                     break ;
                 case 'k': {
-                    if (i >= argc + 2) return usage(1);
+                    if (i + 2 >= argc) return usage(1);
                     struct keyarg_s * keyarg = calloc(1, sizeof(*keyarg));
                     if (keyarg == NULL) { perror("malloc"); break ; }
                     if (keys == NULL) keys = keyarg;
                     else {
                         struct keyarg_s * elt; for (elt = keys; elt->next != NULL; elt = elt->next) ;/* nothing */
-                        keyarg->next = elt;
+                        elt->next = keyarg;
                     }
+                    keyarg->next = NULL;
                     keyarg->key = argv[++i];
                     keyarg->value = argv[++i];
                     break ;
@@ -157,9 +165,9 @@ int main(int argc, const char*const* argv) {
             break ;
         }
     }
-#ifdef OSLOG
+#ifdef ASLPIPE_OSLOG
     if ((log = os_log_create(facility, category)) == NULL) {
-#elif defined(SYSLOG)
+#elif defined(ASLPIPE_SYSLOG)
     openlog("pf", 0, LOG_LOCAL2); if (0) {
 #else
     if ((msg = asl_new(ASL_TYPE_MSG)) != NULL) {
@@ -178,9 +186,14 @@ int main(int argc, const char*const* argv) {
             asl_set(msg, ASL_KEY_SENDER, sender);
             asl_set(msg, "ShortSender", sender);
         }
-        for (struct keyarg_s * elt = keys; elt != NULL; elt = elt->next) {
+        for (struct keyarg_s * elt = keys; elt != NULL; ) {
+            struct keyarg_s * cur = elt;
+            //fprintf(stderr, "aslpipe: key <%s> = '%s'\n", elt->key, elt->value);
             asl_set(msg, elt->key, elt->value);
+            elt = elt->next;
+            free(cur);
         }
+        keys = NULL;
         log = NULL; // log = asl_open("pf", "local2", 0);
     } else {
 #endif
@@ -225,7 +238,7 @@ int main(int argc, const char*const* argv) {
 
         check_child(child, infile, &ret);
     }
-#if !defined(SYSLOG) && !defined(OSLOG)
+#if !defined(ASLPIPE_SYSLOG) && !defined(ASLPIPE_OSLOG)
     asl_free(msg);
 #endif
     return ret;

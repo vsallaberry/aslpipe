@@ -22,3 +22,5 @@
 /obj/
 /valgrind_*.log
 _ada-stub_.ad[bs]
+
+test/close

@@ -1,0 +1,23 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main(int argc, char ** argv) {
+
+    int fd = dup(STDOUT_FILENO);
+
+    fprintf(stderr, "%s: hello stderr\n", *argv);
+    fprintf(stdout, "%s: hello stdout\n", *argv);
+
+    fclose(stdout);
+    fclose(stderr);
+
+    dprintf(STDOUT_FILENO, "%s: stdout still here?\n", *argv);
+    dprintf(STDERR_FILENO, "%s: stderr still here?\n", *argv);
+
+    sleep(15);
+    dprintf(fd, "%s: exiting...\n", *argv);
+
+    return 0;
+}
+

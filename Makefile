@@ -144,11 +144,13 @@ VALGRIND_RUN	= ./$(BIN)
 VALGRIND_MEM_IGNORE_PATTERN = __CFInitialize|_objc_init|objc_msgSend|_NSInitializePlatform
 # CHECK_RUN: what to run with 'make check' (eg: 'true', './test.sh $(BIN)', './$(BIN) --test'
  #   if tests are only built with macro _TEST, you can insert 'make debug' or 'make test'
-CHECK_RUN	= set -x || true; \
-		  if $(TEST) "$(RELEASE_MODE)" = "DEBUG"; then ./$(BIN) -h && ./$(BIN) -d -T; \
-		  else ./$(BIN) -h && ./$(BIN) -d -T && r=true || r=false; \
-		      echo "** make test: run 'make debug && make test' for full tests"; $$r; \
-		  fi
+#CHECK_RUN	= set -x || true; \
+#		  if $(TEST) "$(RELEASE_MODE)" = "DEBUG"; then ./$(BIN) -h && ./$(BIN) -d -T; \
+#		  else ./$(BIN) -h && ./$(BIN) -d -T && r=true || r=false; \
+#		      echo "** make test: run 'make debug && make test' for full tests"; $$r; \
+#		  fi
+CHECK_RUN	= test/close.sh
+
 ############################################################################################
 # GENERIC PART - in most cases no need to change anything below until end of file
 ############################################################################################
