@@ -29,8 +29,6 @@ For process pf run as root, log in /var/log/pf.log, and /var/log/me.log otherwis
 Examples:  
     $ while true; do echo "Hello"; sleep 1; done | aslpipe -F local2 -K MessageV 
     $ aslpipe -K MessageV -F local2 -l 6 -S pf "${tcpdump}" -k INPSDC -lnettti pflog0
-written to display summary about different build log files, on different 
-machines. Tested only with bash (even if the header is !/bin/sh).
 
 ## Contact
 [vsallaberry@gmail.com]  
